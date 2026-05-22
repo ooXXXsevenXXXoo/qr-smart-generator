@@ -1,0 +1,163 @@
+---
+import Layout from '../layouts/Layout.astro';
+import db from '../db/database';
+
+type HistorialItem = {
+  id: number;
+  texto: string;
+  fecha: string;
+};
+
+// ELIMINAR QR
+
+if (Astro.request.method === 'POST') {
+
+  const data = await Astro.request.formData();
+
+  const id = data.get('id')?.toString();
+
+  if (id) {
+
+    await new Promise<void>((resolve, reject) => {
+
+      db.run(
+        'DELETE FROM historial WHERE id = ?',
+        [id],
+        (err) => {
+
+          if (err) reject(err);
+          else resolve();
+
+        }
+      );
+
+    });
+
+  }
+
+}
+
+// OBTENER HISTORIAL
+
+const historial = await new Promise<HistorialItem[]>((resolve, reject) => {
+
+  db.all(
+    'SELECT * FROM historial ORDER BY id DESC',
+    [],
+    (err, rows: HistorialItem[]) => {
+
+      if (err) reject(err);
+      else resolve(rows);
+
+    }
+  );
+
+});
+---
+
+<Layout title="Historial QR">
+
+  <h1
+    style="
+      text-align:center;
+      margin-bottom:2rem;
+    "
+  >
+    Historial de QR
+  </h1>
+
+  <div
+    style="
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:2rem;
+    "
+  >
+
+    {
+
+      historial.map((item) => {
+
+        const qrUrl =
+          `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(item.texto)}`;
+
+        return (
+
+          <div
+            style="
+              background:white;
+              border-radius:20px;
+              padding:1.5rem;
+              box-shadow:0 10px 25px rgba(0,0,0,0.08);
+              text-align:center;
+            "
+          >
+
+            <img
+              src={qrUrl}
+              alt="QR"
+              style="
+                width:220px;
+                height:220px;
+                margin:auto;
+                display:block;
+              "
+            />
+
+            <p
+              style="
+                margin-top:1rem;
+                word-break:break-all;
+                color:#374151;
+              "
+            >
+              {item.texto}
+            </p>
+
+            <p
+              style="
+                color:#6b7280;
+                font-size:0.9rem;
+                margin-top:0.5rem;
+              "
+            >
+              {item.fecha}
+            </p>
+
+            <form method="POST">
+
+              <input
+                type="hidden"
+                name="id"
+                value={item.id}
+              />
+
+              <button
+                type="submit"
+                style="
+                  margin-top:1rem;
+                  background:#dc2626;
+                  color:white;
+                  border:none;
+                  padding:10px 16px;
+                  border-radius:10px;
+                  cursor:pointer;
+                  font-weight:bold;
+                "
+              >
+                Eliminar
+              </button>
+
+            </form>
+
+          </div>
+
+        );
+
+      })
+
+    }
+
+  </div>
+
+</Layout>

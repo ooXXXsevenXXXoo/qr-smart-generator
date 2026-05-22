@@ -1,11 +1,377 @@
 ---
-import Welcome from '../components/Welcome.astro';
+import db from '../db/database';
 import Layout from '../layouts/Layout.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+let qrUrl = null;
+let textoIngresado = '';
+let error = null;
+
+if (Astro.request.method === 'POST') {
+
+  const data = await Astro.request.formData();
+
+  textoIngresado = data.get('texto')?.toString() || '';
+
+  if (textoIngresado.trim().length === 0) {
+
+    error = 'Debes escribir un texto o URL válida.';
+
+  } else {
+
+  const encoded = encodeURIComponent(textoIngresado);
+
+  qrUrl =
+    `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encoded}`;
+
+  const fecha = new Date().toLocaleString();
+
+  await new Promise<void>((resolve, reject) => {
+
+    db.run(
+      'INSERT INTO historial (texto, fecha) VALUES (?, ?)',
+      [textoIngresado, fecha],
+      (err) => {
+
+        if (err) reject(err);
+        else resolve();
+
+      }
+    );
+
+  });
+
+}
+}
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="QR Smart Generator">
+
+  <div
+    style="
+      max-width:700px;
+      margin:auto;
+    "
+  >
+
+    <h1
+      style="
+        text-align:center;
+        margin-bottom:1rem;
+      "
+    >
+      Generador de QR
+    </h1>
+
+    <p
+      style="
+        text-align:center;
+        color:#6b7280;
+        margin-bottom:2rem;
+      "
+    >
+      Genera códigos QR personalizados para enlaces, textos o información rápidamente.
+    </p>
+
+    <form
+      method="POST"
+      id="qr-form"
+      style="
+        background:white;
+        padding:2rem;
+        border-radius:18px;
+        box-shadow:0 4px 20px rgba(0,0,0,0.08);
+      "
+    >
+
+      <label
+        for="texto"
+        style="
+          display:block;
+          font-weight:bold;
+          margin-bottom:0.5rem;
+        "
+      >
+        Escribe un texto o URL
+      </label>
+
+      <input
+        id="texto"
+        name="texto"
+        type="text"
+        value={textoIngresado}
+        placeholder="https://google.com"
+        style="
+          width:100%;
+          padding:14px;
+          border:1px solid #d1d5db;
+          border-radius:10px;
+          font-size:1rem;
+          outline:none;
+        "
+      />
+
+      <button
+        type="submit"
+        style="
+          width:100%;
+          margin-top:1.5rem;
+          background:#6D28D9;
+          color:white;
+          border:none;
+          padding:14px;
+          border-radius:10px;
+          font-size:1rem;
+          font-weight:bold;
+          cursor:pointer;
+        "
+      >
+        Generar Código QR
+      </button>
+
+    </form>
+
+    {error && (
+
+      <div
+        style="
+          margin-top:1rem;
+          background:#fee2e2;
+          color:#b91c1c;
+          padding:1rem;
+          border-radius:10px;
+          text-align:center;
+        "
+      >
+        {error}
+      </div>
+
+    )}
+
+    {
+  qrUrl && (
+
+    <div class="tarjeta-qr">
+
+      <div class="decoracion"></div>
+
+      <div class="info-qr">
+
+        <span class="badge">
+          QR GENERADO
+        </span>
+
+        <h2>
+          Tu código QR está listo 
+        </h2>
+
+        <p class="descripcion">
+          Escanea o comparte este código QR fácilmente.
+        </p>
+
+        <div class="texto-box">
+
+          <p>
+            {textoIngresado}
+          </p>
+
+        </div>
+
+        <div class="acciones">
+
+          <a
+            href={qrUrl}
+            download="codigoQR.png"
+            class="btn descargar"
+          >
+            Descargar QR
+          </a>
+
+          <a
+            href={`/historial?texto=${encodeURIComponent(textoIngresado)}`}
+            class="btn historial"
+          >
+            Historial
+          </a>
+
+        </div>
+
+      </div>
+
+      <div class="qr-box">
+
+        <div class="qr-wrapper">
+
+          <img
+            src={qrUrl}
+            alt="Código QR"
+          />
+
+        </div>
+
+      </div>
+
+    </div>
+
+  )
+}
+
+  </div>
+
+  <script>
+
+    const form = document.getElementById('qr-form');
+
+    form?.addEventListener('submit', () => {
+
+      const input = document.getElementById('texto');
+
+if (!(input instanceof HTMLInputElement)) return;
+
+if (!input.value.trim()) return;
+
+      let historial = JSON.parse(
+        localStorage.getItem('historialQR') || '[]'
+      );
+
+      historial.push(input.value);
+
+      localStorage.setItem(
+        'historialQR',
+        JSON.stringify(historial)
+      );
+
+    });
+
+  </script>
+  <style>
+
+.tarjeta-qr{
+  position:relative;
+  overflow:hidden;
+  margin-top:2rem;
+  background:linear-gradient(135deg,#111827,#1f2937);
+  border-radius:32px;
+  padding:2.5rem;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:2rem;
+  align-items:center;
+  color:white;
+  box-shadow:0 20px 50px rgba(0,0,0,0.18);
+}
+
+.decoracion{
+  position:absolute;
+  width:350px;
+  height:350px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.05);
+  top:-120px;
+  right:-120px;
+}
+
+.badge{
+  display:inline-block;
+  background:#6D28D9;
+  padding:8px 16px;
+  border-radius:999px;
+  font-size:0.9rem;
+  font-weight:bold;
+  margin-bottom:1rem;
+}
+
+.info-qr h2{
+  font-size:2.2rem;
+  margin-bottom:1rem;
+}
+
+.descripcion{
+  color:#d1d5db;
+  margin-bottom:1.5rem;
+  line-height:1.7;
+}
+
+.texto-box{
+  background:rgba(255,255,255,0.08);
+  padding:1rem;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,0.08);
+  margin-bottom:2rem;
+}
+
+.texto-box p{
+  word-break:break-all;
+  color:#f3f4f6;
+}
+
+.acciones{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1rem;
+}
+
+.btn{
+  text-decoration:none;
+  padding:14px 20px;
+  border-radius:14px;
+  font-weight:bold;
+  transition:0.3s;
+}
+
+.btn:hover{
+  transform:translateY(-3px);
+}
+
+.descargar{
+  background:#6D28D9;
+  color:white;
+}
+
+.historial{
+  background:white;
+  color:#111827;
+}
+.qr-box{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.qr-wrapper{
+  background:white;
+  padding:1.5rem;
+  border-radius:28px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+}
+
+.qr-wrapper img{
+  width:320px;
+  height:320px;
+  display:block;
+}
+
+@media(max-width:900px){
+
+  .tarjeta-qr{
+    grid-template-columns:1fr;
+    text-align:center;
+  }
+
+  .acciones{
+    justify-content:center;
+  }
+
+  .info-qr h2{
+    font-size:1.8rem;
+  }
+
+  .qr-wrapper img{
+    width:240px;
+    height:240px;
+  }
+
+}
+
+</style>
+
 </Layout>
