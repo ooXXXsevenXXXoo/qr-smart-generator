@@ -1,5 +1,5 @@
 ---
-import db from '../db/database';
+
 import Layout from '../layouts/Layout.astro';
 
 let qrUrl = null;
@@ -10,37 +10,24 @@ if (Astro.request.method === 'POST') {
 
   const data = await Astro.request.formData();
 
-  textoIngresado = data.get('texto')?.toString() || '';
+  textoIngresado =
+    data.get('texto')?.toString() || '';
 
   if (textoIngresado.trim().length === 0) {
 
-    error = 'Debes escribir un texto o URL válida.';
+    error =
+      'Debes escribir un texto o URL válida.';
 
   } else {
 
-  const encoded = encodeURIComponent(textoIngresado);
+    const encoded =
+      encodeURIComponent(textoIngresado);
 
-  qrUrl =
-    `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encoded}`;
+    qrUrl =
+      `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encoded}`;
 
-  const fecha = new Date().toLocaleString();
+  }
 
-  await new Promise<void>((resolve, reject) => {
-
-    db.run(
-      'INSERT INTO historial (texto, fecha) VALUES (?, ?)',
-      [textoIngresado, fecha],
-      (err) => {
-
-        if (err) reject(err);
-        else resolve();
-
-      }
-    );
-
-  });
-
-}
 }
 ---
 
@@ -217,32 +204,42 @@ if (Astro.request.method === 'POST') {
 
   </div>
 
-  <script>
+  <script is:inline>
 
-    const form = document.getElementById('qr-form');
+  const form =
+    document.getElementById('qr-form');
 
-    form?.addEventListener('submit', () => {
+  form?.addEventListener('submit', () => {
 
-      const input = document.getElementById('texto');
+    const input =
+      document.getElementById('texto');
 
-if (!(input instanceof HTMLInputElement)) return;
+    if (!(input instanceof HTMLInputElement))
+      return;
 
-if (!input.value.trim()) return;
+    if (!input.value.trim())
+      return;
 
-      let historial = JSON.parse(
-        localStorage.getItem('historialQR') || '[]'
-      );
+    let historial = JSON.parse(
+      localStorage.getItem('historialQR') || '[]'
+    );
 
-      historial.push(input.value);
+    historial.push({
 
-      localStorage.setItem(
-        'historialQR',
-        JSON.stringify(historial)
-      );
+      texto: input.value,
+
+      fecha: new Date().toLocaleString()
 
     });
 
-  </script>
+    localStorage.setItem(
+      'historialQR',
+      JSON.stringify(historial)
+    );
+
+  });
+
+</script>
   <style>
 
 .tarjeta-qr{
